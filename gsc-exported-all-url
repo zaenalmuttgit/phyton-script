@@ -1,0 +1,41 @@
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+import pandas as pd
+import datetime
+
+# Ganti nama file credentials jika perlu
+CREDENTIALS_FILE = 'File.json'
+SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly']
+
+def get_service():
+    flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+    creds = flow.run_local_server(port=0)
+    service = build('searchconsole', 'v1', credentials=creds)
+    return service
+
+def fetch_404_data(service, site_url):
+    end_date = datetime.date.today()
+    start_date = end_date - datetime.timedelta(days=90)  # max 90 hari data GSC
+
+    response = service.searchanalytics().query(
+        siteUrl=site_url,
+        body={
+            'startDate': start_date.isoformat(),
+            'endDate': end_date.isoformat(),
+            'dimensions': ['page'],
+            'rowLimit': 25000  # GSC API limit maksimal
+        }).execute()
+
+    if 'rows' in response:
+        rows = response['rows']
+        urls = [row['keys'][0] for row in rows]
+        df = pd.DataFrame(urls, columns=['URL'])
+        df.to_excel("gsc_exported_urls.xlsx", index=False)
+        print(f"✅ Total URL diekspor: {len(df)}")
+    else:
+        print("⚠️ Tidak ada data ditemukan. Pastikan properti GSC sudah benar dan ada datanya.")
+
+if __name__ == '__main__':
+    service = get_service()
+    fetch_404_data(service, 'https://blackdop.com/')  # Ganti dengan domain kamu
