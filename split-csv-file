@@ -1,0 +1,39 @@
+import os
+import csv
+
+# Ganti dengan nama file CSV kamu
+input_file = "data.csv"
+output_dir = "split_parts"
+max_size_bytes = 19 * 1024 * 1024  # 19 MB
+
+# Membuat folder output jika belum ada
+os.makedirs(output_dir, exist_ok=True)
+
+# Fungsi untuk membuat writer dan file baru
+def new_writer(part_num):
+    part_path = os.path.join(output_dir, f"part_{part_num}.csv")
+    f = open(part_path, "w", newline="", encoding="utf-8")
+    writer = csv.writer(f)
+    return f, writer, part_path
+
+# Mulai proses pembagian file
+with open(input_file, "r", encoding="cp1252") as infile:
+    reader = csv.reader(infile)
+    header = next(reader)
+
+    part_num = 1
+    f, writer, current_path = new_writer(part_num)
+    writer.writerow(header)
+
+    for row in reader:
+        writer.writerow(row)
+        f.flush()
+        if os.path.getsize(current_path) >= max_size_bytes:
+            f.close()
+            part_num += 1
+            f, writer, current_path = new_writer(part_num)
+            writer.writerow(header)
+
+    f.close()
+
+print(f"Selesai! File dibagi menjadi {part_num} bagian di folder '{output_dir}'.")
